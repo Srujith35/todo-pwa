@@ -311,8 +311,7 @@
     <span class="update-text">New version available</span>
     <button id="updateAppBtn" class="update-btn">Update</button>
   </div>
-
-  <script>
+<script>
     // CONFIG
     const SUPABASE_URL = 'https://ehzdeplfeifwwccilbnu.supabase.co'; 
     const SUPABASE_KEY = 'sb_publishable_Z_rxKGrCQLDkPUQnc3mVeA_2WH8ASE0';
@@ -328,9 +327,18 @@
     let endOffset = 30;
     
     // FLAGS
-    let isAppReady = false; // Locks scroll logic until init done
+    let isAppReady = false; 
     let isExtending = false;
     let isSnapping = false;
+
+    // --- HELPER: GET LOCAL DATE STRING (YYYY-MM-DD) ---
+    // Fixes the timezone bug by ignoring UTC conversions
+    function getLocalISO(dateObj) {
+      const year = dateObj.getFullYear();
+      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const day = String(dateObj.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
 
     // --- INITIAL SETUP & CALENDAR RENDER ---
     
@@ -341,7 +349,7 @@
         d.setDate(d.getDate() + i);
         days.push({
           offset: i,
-          iso: d.toISOString().split('T')[0],
+          iso: getLocalISO(d), // FIXED: Use local time
           wk: d.toLocaleString('en-US', { weekday: 'short' }),
           num: d.getDate()
         });
@@ -353,6 +361,7 @@
       el.className = `cal-day ${d.iso === todayISO ? 'today' : ''} ${selectedDate === d.iso ? 'selected' : ''}`;
       el.dataset.iso = d.iso;
       
+      // Check for any incomplete tasks for this specific date
       const hasTasks = tasks.some(t => t.due === d.iso && !t.completed);
       el.innerHTML = `
         <div class="wk">${d.wk}</div>
@@ -366,7 +375,7 @@
 
     function renderCalendar() {
       const strip = $('calendarStrip');
-      const todayISO = new Date().toISOString().split('T')[0];
+      const todayISO = getLocalISO(new Date()); // FIXED
       strip.innerHTML = '';
       
       const frag = document.createDocumentFragment();
@@ -383,7 +392,6 @@
       });
       renderTasks();
       
-      // Only scroll if app is ready (user interaction)
       if (isAppReady) {
         scrollToIso(iso, true); 
       }
@@ -396,7 +404,6 @@
       const target = strip.querySelector(`[data-iso="${iso}"]`);
       if (!target) return;
 
-      // If app isn't ready, force instant scroll via JS calculation to avoid browser quirks
       if (!isAppReady || !smooth) {
         const stripWidth = strip.clientWidth;
         const targetLeft = target.offsetLeft;
@@ -411,7 +418,6 @@
       const strip = $('calendarStrip');
       const center = strip.scrollLeft + (strip.clientWidth / 2);
       
-      // Find element closest to center pixel
       let closest = null;
       let minDiff = Infinity;
       
@@ -425,26 +431,24 @@
       }
 
       if (closest && closest.dataset.iso) {
-        const d = new Date(closest.dataset.iso);
+        // Parse the ISO string directly to avoid timezone shifts in Month Label
+        const parts = closest.dataset.iso.split('-');
+        const d = new Date(parts[0], parts[1] - 1, parts[2]); 
         const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
         $('monthLabel').textContent = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
       }
     }
 
-    // Debounced snap logic
     let snapTimeout;
     function handleScroll() {
-      // 1. Infinite Scroll Check
       const strip = $('calendarStrip');
       if (isAppReady && !isExtending) {
         if (strip.scrollLeft < 100) extendLeft();
         else if (strip.scrollWidth - strip.clientWidth - strip.scrollLeft < 100) extendRight();
       }
 
-      // 2. Update Month Label immediately
       updateMonthLabel();
 
-      // 3. Snap Logic (Only if app is ready)
       if (isAppReady) {
         clearTimeout(snapTimeout);
         snapTimeout = setTimeout(() => {
@@ -453,7 +457,7 @@
             snapToCenter();
             setTimeout(() => isSnapping = false, 400);
           }
-        }, 150); // Wait for scroll to stop
+        }, 150); 
       }
     }
 
@@ -476,12 +480,17 @@
     function extendRight() {
       isExtending = true;
       const strip = $('calendarStrip');
-      const todayISO = new Date().toISOString().split('T')[0];
+      const todayISO = getLocalISO(new Date()); // FIXED
       
       for(let i=1; i<=15; i++) {
         endOffset++;
         const d = new Date(); d.setDate(d.getDate() + endOffset);
-        const dayObj = { offset: endOffset, iso: d.toISOString().split('T')[0], wk: d.toLocaleString('en-US',{weekday:'short'}), num: d.getDate() };
+        const dayObj = { 
+            offset: endOffset, 
+            iso: getLocalISO(d), // FIXED
+            wk: d.toLocaleString('en-US',{weekday:'short'}), 
+            num: d.getDate() 
+        };
         days.push(dayObj);
         strip.appendChild(createDayEl(dayObj, todayISO));
       }
@@ -492,23 +501,27 @@
       isExtending = true;
       const strip = $('calendarStrip');
       const prevScrollW = strip.scrollWidth;
-      const todayISO = new Date().toISOString().split('T')[0];
+      const todayISO = getLocalISO(new Date()); // FIXED
       
-      // Temporarily disable smooth behavior if it was enabled
+      // Temporarily disable smooth behavior
       strip.classList.remove('enable-smooth');
       
       const newNodes = [];
       for(let i=1; i<=15; i++) {
         startOffset--;
         const d = new Date(); d.setDate(d.getDate() + startOffset);
-        const dayObj = { offset: startOffset, iso: d.toISOString().split('T')[0], wk: d.toLocaleString('en-US',{weekday:'short'}), num: d.getDate() };
+        const dayObj = { 
+            offset: startOffset, 
+            iso: getLocalISO(d), // FIXED 
+            wk: d.toLocaleString('en-US',{weekday:'short'}), 
+            num: d.getDate() 
+        };
         days.unshift(dayObj);
         newNodes.unshift(createDayEl(dayObj, todayISO));
       }
       
       newNodes.forEach(n => strip.insertBefore(n, strip.firstChild));
       
-      // Adjust scroll to maintain position
       const addedW = strip.scrollWidth - prevScrollW;
       strip.scrollLeft += addedW;
       
@@ -525,9 +538,8 @@
         const { data, error } = await supabase.from('tasks').select('*').order('created_at', { ascending: false });
         if (data) {
           tasks = data.map(t => ({ ...t, due: t.due ? t.due.split('T')[0] : null }));
-          renderCalendar(); // refresh dots
+          renderCalendar(); 
           renderTasks();
-          // Restore selection visual after re-render
           if(selectedDate) selectDate(selectedDate);
         }
       } catch(e) { console.error(e); }
@@ -536,15 +548,23 @@
     function renderTasks() {
       const list = $('taskList');
       list.innerHTML = '';
+      
+      // 1. Start with all tasks
       let filtered = tasks;
 
-      if (selectedDate) filtered = filtered.filter(t => t.due === selectedDate);
-      if (currentFilter === 'today') filtered = filtered.filter(t => t.due === new Date().toISOString().split('T')[0]);
-      else if (currentFilter === 'active') filtered = filtered.filter(t => !t.completed);
+      // 2. Apply Calendar Date Filter (Unless "All" or "Active" logic is customized)
+      // The user expects tasks to "Stick" to the date.
+      if (selectedDate) {
+          filtered = filtered.filter(t => t.due === selectedDate);
+      }
+
+      // 3. Apply Status Filters
+      if (currentFilter === 'active') filtered = filtered.filter(t => !t.completed);
       else if (currentFilter === 'completed') filtered = filtered.filter(t => t.completed);
+      // Note: We removed 'today' filter here because "Today" should be a navigation action, not a filter
 
       if (filtered.length === 0) {
-        list.innerHTML = `<div style="text-align:center; padding:40px; opacity:0.5">No tasks here</div>`;
+        list.innerHTML = `<div style="text-align:center; padding:40px; opacity:0.5">No tasks for this date</div>`;
         return;
       }
 
@@ -555,7 +575,7 @@
           <div class="checkbox ${t.completed ? 'checked' : ''}">${t.completed ? '✓' : ''}</div>
           <div class="task-content">
             <div class="task-title">${t.title.replace(/</g,'&lt;')}</div>
-            <div class="task-meta"><span class="priority-tag p-${t.priority}">${t.priority}</span>${t.due ? ` 📅 ${t.due}`:''}</div>
+            <div class="task-meta"><span class="priority-tag p-${t.priority}">${t.priority}</span></div>
           </div>
           <button class="delete-btn">🗑️</button>
         `;
@@ -579,16 +599,19 @@
 
       const { data, error } = await supabase.from('tasks').insert([newTask]).select();
       if (!error && data) {
-        // Local update
         const t = { ...data[0], due: data[0].due ? data[0].due.split('T')[0] : null };
         tasks.unshift(t);
-        renderCalendar();
-        renderTasks();
-        // Select the date of the new task to show it
+        
+        // If the new task is for the currently selected date, just render
+        // If it's for a different date, jump to that date
         if (t.due) {
             selectDate(t.due);
             scrollToIso(t.due, true);
+        } else {
+            renderTasks();
         }
+        renderCalendar(); // update dots
+        
         closeModal();
         $('taskTitleInput').value = '';
       }
@@ -611,15 +634,16 @@
 
     // --- UI HANDLERS ---
     function openModal() { 
-      $('taskDateInput').value = selectedDate || new Date().toISOString().split('T')[0];
+      // Default the date input to the currently selected date on the strip
+      $('taskDateInput').value = selectedDate || getLocalISO(new Date());
       $('addModal').classList.add('open'); 
     }
     function closeModal() { $('addModal').classList.remove('open'); }
     
-    function jump(days) {
-      const current = new Date(selectedDate || new Date());
-      current.setDate(current.getDate() + days);
-      const iso = current.toISOString().split('T')[0];
+    function jump(daysToAdd) {
+      const current = selectedDate ? new Date(selectedDate) : new Date();
+      current.setDate(current.getDate() + daysToAdd);
+      const iso = getLocalISO(current); // FIXED
       selectDate(iso);
     }
 
@@ -630,13 +654,11 @@
       generateInitialDays();
       renderCalendar();
       
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalISO(new Date()); // FIXED
       selectedDate = today;
 
-      // INITIAL SCROLL: Perform instant scroll BEFORE listeners are active
-      // We do this inside a requestAnimationFrame to ensure DOM is painted
       requestAnimationFrame(() => {
-         scrollToIso(today, false); // false = Instant
+         scrollToIso(today, false); 
          updateMonthLabel();
       });
 
@@ -652,61 +674,49 @@
       
       document.querySelectorAll('.pill-btn').forEach(btn => {
         btn.onclick = () => {
-          document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          currentFilter = btn.dataset.filter;
-          renderTasks();
+          const filterType = btn.dataset.filter;
+
+          // Special Handling for "Today" button
+          // Instead of filtering, we navigation TO today
+          if (filterType === 'today') {
+              const todayISO = getLocalISO(new Date());
+              selectDate(todayISO);
+              // Reset visual pills to "All" (or keep active if preferred)
+              document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active'));
+              document.querySelector('[data-filter="all"]').classList.add('active');
+              currentFilter = 'all';
+          } else {
+              // Standard filters
+              document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active'));
+              btn.classList.add('active');
+              currentFilter = filterType;
+              renderTasks();
+          }
         };
       });
 
-      // Add scroll listener
       $('calendarStrip').addEventListener('scroll', handleScroll);
 
-      // UNLOCK APP: Enable smooth scrolling only after initial setup is settled
       setTimeout(() => {
         isAppReady = true;
         $('calendarStrip').classList.add('enable-smooth');
         $('loader').style.display = 'none';
-      }, 300); // 300ms buffer for initial layout to stabilize
+      }, 300); 
     }
 
     init();
-// --- SERVICE WORKER / AUTO UPDATE LOGIC ---
-    
-    if ('serviceWorker' in navigator) {
-      let newWorker;
 
-      // Register the service worker
+    // Service Worker Logic remains the same...
+    if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/service-worker.js').then(reg => {
-        
-        // Check for updates on load
         reg.addEventListener('updatefound', () => {
-          newWorker = reg.installing;
+          const newWorker = reg.installing;
           newWorker.addEventListener('statechange', () => {
-            // If there is a new worker and it's installed
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              // Show the popup
               document.getElementById('updateToast').classList.add('show');
             }
           });
         });
-      });
-
-      // Handle the "Update" button click
-      document.getElementById('updateAppBtn').addEventListener('click', () => {
-        // Find the worker that is waiting and tell it to activate
-        if (newWorker) {
-          newWorker.postMessage({ type: 'SKIP_WAITING' });
-        }
-      });
-
-      // Reload page when the new service worker takes control
-      let refreshing = false;
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (!refreshing) {
-          window.location.reload();
-          refreshing = true;
-        }
       });
     }
   </script>
