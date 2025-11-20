@@ -2,10 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <title>Modern To-Do List (Supabase)</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="manifest" href="./manifest.json" />
   <style>
     :root {
       --bg: #f8fafc;
@@ -15,596 +14,463 @@
       --text: #0f172a;
       --text-muted: #64748b;
       --border: #e2e8f0;
-      --success: #10b981;
+      --success: #10b981;z
       --warning: #f59e0b;
       --danger: #ef4444;
-      --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
-      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --modal-overlay: rgba(0, 0, 0, 0.5);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       background: var(--bg);
       color: var(--text);
-      line-height: 1.6;
-      min-height: 100vh;
+      line-height: 1.5;
+      padding-bottom: 80px; /* Space for FAB */
     }
 
-    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    .container { max-width: 1000px; margin: 0 auto; padding: 16px; }
 
     /* Header */
-    .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
-    .brand { display: flex; align-items: center; gap: 12px; }
-    .logo { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, var(--accent), #8b5cf6); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 20px; box-shadow: var(--shadow); }
-    h1 { font-size: 24px; font-weight: 700; color: var(--text); }
-    .subtitle { font-size: 14px; color: var(--text-muted); }
-    .header-actions { display: flex; gap: 8px; align-items: center; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .brand h1 { font-size: 24px; font-weight: 800; color: var(--accent); }
+    .brand span { font-size: 12px; color: var(--text-muted); display: block; }
 
     /* Calendar Section */
-    .calendar-section { background: var(--card); border-radius: 16px; padding: 20px; margin-bottom: 24px; box-shadow: var(--shadow); border: 1px solid var(--border); }
-    .calendar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
-    .calendar-title { font-size: 18px; font-weight: 600; color: var(--text); }
-    .calendar-info { font-size: 14px; color: var(--text-muted); }
-    .calendar-controls { display: flex; align-items: center; gap: 12px; }
-    .nav-btn { background: var(--bg); border: 1px solid var(--border); width: 36px; height: 36px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; font-size: 16px; }
-    .nav-btn:hover { background: var(--accent); color: white; border-color: var(--accent); }
-    .calendar-strip { display: flex; gap: 12px; overflow-x: auto; padding: 8px 0; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
-    .calendar-strip::-webkit-scrollbar { height: 6px; }
-    .calendar-strip::-webkit-scrollbar-track { background: var(--bg); border-radius: 3px; }
-    .calendar-strip::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-    .cal-day { min-width: 80px; background: var(--bg); border: 2px solid var(--border); border-radius: 12px; padding: 12px; cursor: pointer; transition: all 0.2s; text-align: center; flex-shrink: 0; }
-    .cal-day:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
-    .cal-day.today { background: #eff6ff; border-color: var(--accent); }
-    .cal-day.selected { background: var(--accent); border-color: var(--accent); color: white; box-shadow: var(--shadow-lg); }
-    .cal-day .daynum { font-size: 24px; font-weight: 700; line-height: 1; margin-bottom: 4px; }
-    .cal-day .month { font-size: 12px; opacity: 0.8; margin-bottom: 2px; }
-    .cal-day .wk { font-size: 11px; opacity: 0.7; }
-    .cal-day .badges { display: flex; gap: 6px; justify-content: center; margin-top: 8px; }
-    .badge-dot { min-width: 20px; height: 20px; border-radius: 10px; font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center; padding: 0 6px; }
-    .badge-dot.incomplete { background: var(--danger); color: white; }
-    .badge-dot.complete { background: var(--success); color: white; }
-    .selected .badge-dot { background: rgba(255, 255, 255, 0.3); color: white; }
-
-    /* Main Content */
-    .main-content { display: grid; grid-template-columns: 350px 1fr; gap: 24px; align-items: start; }
-    .card { background: var(--card); border-radius: 16px; padding: 24px; box-shadow: var(--shadow); border: 1px solid var(--border); }
+    .calendar-section { background: var(--card); border-radius: 12px; padding: 16px; margin-bottom: 20px; box-shadow: var(--shadow); }
+    .calendar-controls { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .month-label { font-weight: 700; font-size: 16px; }
     
-    /* Sidebar & Accordion */
-    .accordion-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; padding-bottom: 4px; }
-    .accordion-title { font-size: 18px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
-    .toggle-icon { font-size: 12px; transition: transform 0.3s ease; color: var(--text-muted); }
-    .accordion-header.collapsed .toggle-icon { transform: rotate(-90deg); }
-    .accordion-content { max-height: 500px; opacity: 1; overflow: hidden; transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1); margin-bottom: 20px; }
-    .accordion-content.collapsed { max-height: 0; opacity: 0; margin-bottom: 0; }
-    .sidebar-divider { height: 1px; background: var(--border); margin: 0 0 20px 0; }
-    .tools-header { font-size: 14px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+    .nav-btn { 
+      background: var(--bg); border: 1px solid var(--border); width: 32px; height: 32px; 
+      border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; 
+    }
 
-    /* Inputs & Buttons */
-    .input-group { margin-bottom: 16px; }
-    input[type="text"], input[type="date"], input[type="search"], select { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; transition: all 0.2s; background: var(--card); }
-    input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
-    .input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
-    .btn { padding: 12px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
-    .btn-primary { background: var(--accent); color: white; width: 100%; }
-    .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: var(--shadow); }
-    .btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
-    .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); font-size: 13px; padding: 8px 12px; }
-    .btn-secondary:hover { background: var(--border); }
-    .filter-group { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
-    .checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; user-select: none; }
+    .calendar-strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scroll-behavior: smooth; }
+    .calendar-strip::-webkit-scrollbar { height: 0px; display: none; } /* Hide scrollbar */
+    
+    .cal-day { 
+      min-width: 60px; flex: 1; background: var(--bg); border: 1px solid var(--border); 
+      border-radius: 10px; padding: 10px 4px; text-align: center; cursor: pointer; transition: 0.2s; 
+    }
+    .cal-day.selected { background: var(--accent); border-color: var(--accent); color: white; transform: scale(1.05); }
+    .cal-day.today { border-color: var(--accent); border-width: 2px; }
+    .cal-day .daynum { font-size: 20px; font-weight: 700; }
+    .cal-day .wk { font-size: 10px; text-transform: uppercase; opacity: 0.8; }
+    
+    /* Task Dot Indicators */
+    .dots { display: flex; justify-content: center; gap: 3px; margin-top: 4px; height: 4px; }
+    .dot { width: 4px; height: 4px; border-radius: 50%; }
+    .dot.has-incomplete { background: var(--danger); }
+    .selected .dot.has-incomplete { background: white; }
 
-    /* Tasks */
-    .tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    .tasks-title { font-size: 18px; font-weight: 600; }
-    .tasks-subtitle { font-size: 14px; color: var(--text-muted); }
-    .sort-select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--card); cursor: pointer; }
-    .task-list { display: flex; flex-direction: column; gap: 12px; min-height: 200px; }
-    .task { display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; transition: all 0.2s; }
-    .task:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
-    .task.completed { opacity: 0.6; }
-    .task.completed .task-title { text-decoration: line-through; }
-    .task-checkbox { width: 20px; height: 20px; cursor: pointer; accent-color: var(--accent); }
-    .task-content { flex: 1; min-width: 0; }
-    .task-title { font-size: 15px; font-weight: 500; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
-    .priority-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .p-low { background: var(--success); }
-    .p-medium { background: var(--warning); }
-    .p-high { background: var(--danger); }
-    .task-details { font-size: 13px; color: var(--text-muted); }
-    .task-actions { display: flex; gap: 8px; }
-    .icon-btn { width: 32px; height: 32px; border: 1px solid var(--border); background: var(--card); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; font-size: 16px; }
-    .icon-btn:hover { background: var(--bg); border-color: var(--text-muted); }
-    .empty-state { text-align: center; padding: 48px 24px; color: var(--text-muted); }
-    .empty-state-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; color: var(--text); }
-    .legend { display: flex; gap: 16px; align-items: center; font-size: 13px; color: var(--text-muted); margin-top: 12px; flex-wrap: wrap; }
-    .legend-item { display: flex; align-items: center; gap: 6px; }
+    /* Controls & Filters */
+    .controls { display: flex; gap: 10px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 5px; }
+    .pill-btn { 
+      padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border); 
+      background: var(--card); font-size: 13px; white-space: nowrap; cursor: pointer; 
+    }
+    .pill-btn.active { background: var(--text); color: white; border-color: var(--text); }
+
+    /* Task List */
+    .task-list { display: flex; flex-direction: column; gap: 12px; }
+    .task-card { 
+      background: var(--card); border-radius: 12px; padding: 16px; display: flex; align-items: flex-start; gap: 12px; 
+      box-shadow: var(--shadow); border: 1px solid transparent; transition: 0.2s;
+    }
+    .task-card.completed { opacity: 0.6; background: var(--bg); }
+    .task-card.completed .task-title { text-decoration: line-through; color: var(--text-muted); }
+    
+    .checkbox { 
+      width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--border); 
+      display: flex; align-items: center; justify-content: center; cursor: pointer; margin-top: 2px; flex-shrink: 0;
+    }
+    .checkbox.checked { background: var(--success); border-color: var(--success); color: white; }
+    
+    .task-content { flex: 1; }
+    .task-title { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+    .task-meta { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+    .priority-tag { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
+    .p-high { background: #fee2e2; color: #ef4444; }
+    .p-medium { background: #fef3c7; color: #d97706; }
+    .p-low { background: #dcfce7; color: #16a34a; }
+
+    .delete-btn { border: none; background: none; font-size: 16px; cursor: pointer; opacity: 0.5; padding: 4px; }
+
+    /* FLOATING ACTION BUTTON (FAB) */
+    .fab {
+      position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px;
+      background: var(--accent); color: white; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+      border: none; cursor: pointer; z-index: 90; transition: transform 0.2s;
+    }
+    .fab:active { transform: scale(0.95); }
+
+    /* MODAL (ADD TASK) */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: var(--modal-overlay); z-index: 100;
+      display: none; justify-content: center; align-items: flex-end; /* Bottom sheet on mobile */
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal-card {
+      background: var(--card); width: 100%; max-width: 500px;
+      border-radius: 20px 20px 0 0; padding: 24px;
+      animation: slideUp 0.3s ease-out;
+    }
+    @media(min-width: 600px) {
+      .modal-overlay { align-items: center; }
+      .modal-card { border-radius: 20px; margin: 20px; }
+    }
+
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .modal-title { font-size: 18px; font-weight: 700; }
+    .close-modal { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted); }
+
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--text-muted); }
+    .full-input, .full-select { 
+      width: 100%; padding: 12px; border: 1px solid var(--border); 
+      border-radius: 8px; font-size: 16px; background: var(--bg); 
+    }
+    .btn-submit {
+      width: 100%; background: var(--accent); color: white; padding: 14px;
+      border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer;
+    }
 
     /* Loading */
-    .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: none; justify-content: center; align-items: center; z-index: 1000; }
-    .spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-    /* Responsive */
-    @media (max-width: 1024px) { .main-content { grid-template-columns: 300px 1fr; gap: 20px; } }
-    @media (max-width: 768px) { .main-content { grid-template-columns: 1fr; } .calendar-header, .header { flex-direction: column; align-items: flex-start; } .header-actions { width: 100%; justify-content: space-between; } .cal-day { min-width: 70px; padding: 10px; } }
-    @media (max-width: 480px) { .container { padding: 12px; } .filter-group { flex-direction: column; } .btn-secondary { width: 100%; } }
+    .loader { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); border: 4px solid #f3f3f3; border-top: 4px solid var(--accent); border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; display: none; z-index: 200; }
+    @keyframes spin { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
   </style>
 </head>
 <body>
-  <div id="loading" class="loading-overlay"><div class="spinner"></div></div>
+
+  <div id="loader" class="loader"></div>
+
+  <button id="fabBtn" class="fab">+</button>
 
   <div class="container">
     <div class="header">
       <div class="brand">
-        <div class="logo">✓</div>
-        <div>
-          <h1>Modern To-Do</h1>
-          <div class="subtitle">Syncing with Supabase</div>
-        </div>
+        <h1>Tasks</h1>
+        <span>Supabase Sync</span>
       </div>
-      <div class="header-actions">
-        <button id="refreshBtn" class="btn btn-secondary">Refresh</button>
-      </div>
+      <button id="refreshBtn" class="nav-btn" style="width: auto; padding: 0 12px; font-size: 12px;">Sync</button>
     </div>
 
     <div class="calendar-section">
-      <div class="calendar-header">
-        <div>
-          <div class="calendar-title">📅 Calendar View</div>
-          <div class="calendar-info">Select a date to filter tasks</div>
-        </div>
-        <div id="selectedLabel" style="font-size: 14px; color: var(--text-muted);">
-          Showing: <strong id="selectedDateLabel">All Tasks</strong>
-        </div>
-      </div>
-
       <div class="calendar-controls">
-        <button id="calPrev" class="nav-btn">←</button>
-        <div id="calendarStrip" class="calendar-strip"></div>
-        <button id="calNext" class="nav-btn">→</button>
+        <button class="nav-btn" id="prevWeek">←</button>
+        <span class="month-label" id="monthLabel">Month</span>
+        <button class="nav-btn" id="nextWeek">→</button>
       </div>
-
-      <div class="legend">
-        <div class="legend-item">
-          <span class="badge-dot incomplete">0</span>
-          <span>Incomplete</span>
-        </div>
-        <div class="legend-item">
-          <span class="badge-dot complete">0</span>
-          <span>Completed</span>
-        </div>
-      </div>
+      <div id="calendarStrip" class="calendar-strip"></div>
     </div>
 
-    <div class="main-content">
-      <aside class="sidebar">
-        <div class="card">
-          <div id="addTaskHeader" class="accordion-header collapsed">
-            <div class="accordion-title">
-              Add Task
-              <span class="task-count" style="font-size: 13px; font-weight: normal;">(<span id="count">0</span>)</span>
-            </div>
-            <div class="toggle-icon">▼</div>
-          </div>
+    <div class="controls">
+      <button class="pill-btn active" data-filter="all">All</button>
+      <button class="pill-btn" data-filter="today">Today</button>
+      <button class="pill-btn" data-filter="active">Active</button>
+      <button class="pill-btn" data-filter="completed">Done</button>
+    </div>
 
-          <div id="addTaskPanel" class="accordion-content collapsed">
-            <div style="padding-top: 8px;">
-              <div class="input-group">
-                <input id="taskInput" type="text" placeholder="What needs to be done?" />
-              </div>
-              <div class="input-row">
-                <input id="dueInput" type="date" />
-                <select id="prioritySelect">
-                  <option value="low">Low</option>
-                  <option value="medium" selected>Medium</option>
-                  <option value="high">High</option>
-                </select>
-              </div>
-              <button id="addBtn" class="btn btn-primary">Add Task</button>
-            </div>
-          </div>
+    <div id="taskList" class="task-list">
+      </div>
+  </div>
 
-          <div class="sidebar-divider"></div>
+  <div id="addModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">New Task</div>
+        <button class="close-modal" id="closeModal">×</button>
+      </div>
+      
+      <div class="form-group">
+        <label>What needs to be done?</label>
+        <input type="text" id="taskTitleInput" class="full-input" placeholder="e.g., Buy groceries" autofocus>
+      </div>
 
-          <div class="tools-header">Search & Filters</div>
-          <div class="input-group">
-            <input id="searchInput" type="search" placeholder="Search tasks..." />
-          </div>
-          <label class="checkbox-label">
-            <input id="autoSortToggle" type="checkbox" />
-            Auto-sort by due date
-          </label>
-          <div class="filter-group">
-            <button class="btn btn-secondary quick-filter" data-filter="all">All</button>
-            <button class="btn btn-secondary quick-filter" data-filter="active">Active</button>
-            <button class="btn btn-secondary quick-filter" data-filter="completed">Done</button>
-            <button class="btn btn-secondary quick-filter" data-filter="overdue">Overdue</button>
-          </div>
+      <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div>
+          <label>Due Date</label>
+          <input type="date" id="taskDateInput" class="full-input">
         </div>
-      </aside>
-
-      <main>
-        <div class="card">
-          <div class="tasks-header">
-            <div>
-              <div class="tasks-title">My Tasks</div>
-              <div class="tasks-subtitle">Organize and track your progress</div>
-            </div>
-            <select id="sortSelect" class="sort-select">
-              <option value="manual">Manual</option>
-              <option value="due">Due Date</option>
-              <option value="priority">Priority</option>
-            </select>
-          </div>
-          <div id="taskList" class="task-list"></div>
+        <div>
+          <label>Priority</label>
+          <select id="taskPriorityInput" class="full-select">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+          </select>
         </div>
-      </main>
+      </div>
+
+      <button id="saveTaskBtn" class="btn-submit">Save Task</button>
     </div>
   </div>
 
-  <template id="taskTpl">
-    <div class="task">
-      <input type="checkbox" class="task-checkbox complete-chk" />
-      <div class="task-content">
-        <div class="task-title"></div>
-        <div class="task-details"></div>
-      </div>
-      <div class="task-actions">
-        <button class="icon-btn edit-btn" title="Edit">✏️</button>
-        <button class="icon-btn delete-btn" title="Delete">🗑️</button>
-      </div>
-    </div>
-  </template>
-
   <script>
-    // 2. CONFIGURATION - PASTE YOUR KEYS HERE
+    // --- CONFIGURATION ---
     const SUPABASE_URL = 'https://ehzdeplfeifwwccilbnu.supabase.co'; 
-    const SUPABASE_KEY = 'sb_publishable_Z_rxKGrCQLDkPUQnc3mVeA_2WH8ASE0';
+    const SUPABASE_KEY = 'sb_publishable_Z_rxKGrCQLDkPUQnc3mVeA_2WH8ASE0'; // Use your Key here
 
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     const $ = id => document.getElementById(id);
 
+    // State
     let tasks = [];
-    let calendarStartDate = null;
-    let daysToShow = 21;
-    let selectedDate = null;
+    let calendarStart = new Date(); 
+    calendarStart.setDate(calendarStart.getDate() - 2); // Start slightly in past
+    let selectedDate = null; // YYYY-MM-DD
     let currentFilter = 'all';
 
+    // --- INIT ---
     async function init() {
-      // Show loading state
-      setLoading(true);
-      
-      // Bind UI Events
-      bind();
-      
-      // Setup Calendar view
-      const today = new Date();
-      const start = new Date(today);
-      start.setDate(start.getDate() - 7);
-      calendarStartDate = start.toISOString().split('T')[0];
-      
-      // Initial Fetch
-      await fetchTasks();
-      
-      setLoading(false);
-
-      setTimeout(() => {
-        const strip = $('calendarStrip');
-        const todayBtn = strip.querySelector(`[data-date="${new Date().toISOString().split('T')[0]}"]`);
-        if (todayBtn) todayBtn.scrollIntoView({ inline: 'center', behavior: 'smooth' });
-      }, 100);
-    }
-
-    function bind() {
-      $('addTaskHeader').addEventListener('click', () => {
-        $('addTaskPanel').classList.toggle('collapsed');
-        $('addTaskHeader').classList.toggle('collapsed');
-      });
-
-      $('addBtn').addEventListener('click', onAdd);
-      $('taskInput').addEventListener('keydown', e => {
-        if (e.key === 'Enter') onAdd();
-      });
-      
-      $('calPrev').addEventListener('click', () => scrollCalendar(-1));
-      $('calNext').addEventListener('click', () => scrollCalendar(1));
-      $('refreshBtn').addEventListener('click', async () => {
         setLoading(true);
+        renderCalendar();
+        setupEvents();
         await fetchTasks();
         setLoading(false);
-      });
-      
-      $('autoSortToggle').addEventListener('change', render);
-      $('sortSelect').addEventListener('change', render);
-      $('searchInput').addEventListener('input', render);
-
-      document.querySelectorAll('.quick-filter').forEach(btn => {
-        btn.addEventListener('click', () => {
-          currentFilter = btn.dataset.filter;
-          document.querySelectorAll('.quick-filter').forEach(b => {
-            b.style.background = '';
-            b.style.color = '';
-          });
-          btn.style.background = 'var(--accent)';
-          btn.style.color = 'white';
-          render();
-        });
-      });
     }
 
-    // --- SUPABASE FUNCTIONS ---
+    function setupEvents() {
+        // Navigation
+        $('prevWeek').addEventListener('click', () => shiftCalendar(-7));
+        $('nextWeek').addEventListener('click', () => shiftCalendar(7));
+        
+        // Modal Logic
+        $('fabBtn').addEventListener('click', openModal);
+        $('closeModal').addEventListener('click', closeModal);
+        $('addModal').addEventListener('click', (e) => {
+            if(e.target === $('addModal')) closeModal();
+        });
+
+        // Task Logic
+        $('saveTaskBtn').addEventListener('click', addTask);
+        $('refreshBtn').addEventListener('click', async () => {
+            setLoading(true);
+            await fetchTasks();
+            setLoading(false);
+        });
+
+        // Filter Buttons
+        document.querySelectorAll('.pill-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFilter = btn.dataset.filter;
+                renderTasks();
+            });
+        });
+    }
+
+    // --- CALENDAR LOGIC ---
+    function shiftCalendar(days) {
+        calendarStart.setDate(calendarStart.getDate() + days);
+        renderCalendar();
+    }
+
+    function renderCalendar() {
+        const strip = $('calendarStrip');
+        strip.innerHTML = '';
+        
+        const daysToShow = 7; // Show 1 week at a time on strip (cleaner on mobile)
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        
+        // Update Month Label based on the middle of the view
+        const midDate = new Date(calendarStart);
+        midDate.setDate(midDate.getDate() + 3);
+        $('monthLabel').textContent = `${monthNames[midDate.getMonth()]} ${midDate.getFullYear()}`;
+
+        for (let i = 0; i < daysToShow; i++) {
+            const d = new Date(calendarStart);
+            d.setDate(calendarStart.getDate() + i);
+            const iso = d.toISOString().split('T')[0];
+            const isToday = iso === new Date().toISOString().split('T')[0];
+
+            const el = document.createElement('div');
+            el.className = `cal-day ${isToday ? 'today' : ''} ${selectedDate === iso ? 'selected' : ''}`;
+            
+            // Check for dots
+            const dayTasks = tasks.filter(t => t.due === iso);
+            const hasIncomplete = dayTasks.some(t => !t.completed);
+            
+            el.innerHTML = `
+                <div class="wk">${d.toLocaleString('en-US', { weekday: 'short' })}</div>
+                <div class="daynum">${d.getDate()}</div>
+                ${hasIncomplete ? '<div class="dots"><div class="dot has-incomplete"></div></div>' : ''}
+            `;
+
+            el.addEventListener('click', () => {
+                selectedDate = selectedDate === iso ? null : iso; // Toggle
+                renderCalendar(); // Re-render to update styling
+                renderTasks();
+            });
+
+            strip.appendChild(el);
+        }
+    }
+
+    // --- TASK LOGIC ---
 
     async function fetchTasks() {
-      const { data, error } = await supabase
-        .from('tasks')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error loading tasks:', error);
-        alert('Failed to load tasks');
-      } else {
-        tasks = data || [];
-        render();
-      }
+        const { data, error } = await supabase
+            .from('tasks')
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        if(!error && data) {
+            tasks = data;
+            renderCalendar(); // Update dots
+            renderTasks();
+        }
     }
 
-    async function onAdd() {
-      const title = $('taskInput').value.trim();
-      if (!title) return;
+    function renderTasks() {
+        const list = $('taskList');
+        list.innerHTML = '';
 
-      $('addBtn').disabled = true;
-      $('addBtn').textContent = 'Adding...';
-      
-      const due = $('dueInput').value || null;
-      const priority = $('prioritySelect').value;
+        let filtered = tasks;
 
-      // Generate ID locally for simplicity or let DB do it. 
-      // Here we send string ID to match schema
-      const newTask = {
-        id: Date.now().toString(),
-        title,
-        completed: false,
-        due,
-        priority
-      };
+        // Filter by Date Selection
+        if (selectedDate) {
+            filtered = filtered.filter(t => t.due === selectedDate);
+        }
 
-      const { error } = await supabase.from('tasks').insert([newTask]);
+        // Filter by Pills
+        if (currentFilter === 'today') {
+            const today = new Date().toISOString().split('T')[0];
+            filtered = filtered.filter(t => t.due === today);
+        } else if (currentFilter === 'active') {
+            filtered = filtered.filter(t => !t.completed);
+        } else if (currentFilter === 'completed') {
+            filtered = filtered.filter(t => t.completed);
+        }
 
-      if (error) {
-        alert('Error adding task: ' + error.message);
-      } else {
-        // Refresh local list
-        tasks.unshift(newTask); // Optimistic update
-        $('taskInput').value = '';
-        $('dueInput').value = '';
-        render();
-      }
+        if (filtered.length === 0) {
+            list.innerHTML = `<div style="text-align:center; color:var(--text-muted); padding:40px;">No tasks found</div>`;
+            return;
+        }
 
-      $('addBtn').disabled = false;
-      $('addBtn').textContent = 'Add Task';
+        filtered.forEach(t => {
+            const el = document.createElement('div');
+            el.className = `task-card ${t.completed ? 'completed' : ''}`;
+            el.innerHTML = `
+                <div class="checkbox ${t.completed ? 'checked' : ''}">
+                    ${t.completed ? '✓' : ''}
+                </div>
+                <div class="task-content">
+                    <div class="task-title">${t.title}</div>
+                    <div class="task-meta">
+                        <span class="priority-tag p-${t.priority}">${t.priority}</span>
+                        ${t.due ? `<span>📅 ${t.due}</span>` : ''}
+                    </div>
+                </div>
+                <button class="delete-btn">🗑️</button>
+            `;
+
+            // Events
+            el.querySelector('.checkbox').addEventListener('click', () => toggleTask(t.id, t.completed));
+            el.querySelector('.delete-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteTask(t.id);
+            });
+
+            list.appendChild(el);
+        });
     }
 
-    async function toggleComplete(id, currentStatus) {
-      // Optimistic update in UI
-      const t = tasks.find(x => x.id === id);
-      if(t) t.completed = !currentStatus;
-      render();
+    async function addTask() {
+        const title = $('taskTitleInput').value.trim();
+        if (!title) return;
+        
+        const btn = $('saveTaskBtn');
+        const originalText = btn.textContent;
+        btn.textContent = 'Saving...';
+        btn.disabled = true;
 
-      const { error } = await supabase
-        .from('tasks')
-        .update({ completed: !currentStatus })
-        .eq('id', id);
+        // 1. Generate ID locally (Fixes the "null value in column id" error)
+        const newId = Date.now().toString();
 
-      if (error) {
-        alert('Error updating task');
-        // Revert if error
-        if(t) t.completed = currentStatus;
-        render();
-      }
+        const newTask = {
+            id: newId,
+            title: title,
+            due: $('taskDateInput').value || null,
+            priority: $('taskPriorityInput').value,
+            completed: false
+        };
+
+        // 2. Optimistic Update (Show it on screen immediately)
+        tasks.unshift(newTask);
+        renderCalendar();
+        renderTasks();
+        closeModal();
+        
+        // Clear input
+        $('taskTitleInput').value = ''; 
+
+        // 3. Send to Supabase in the background
+        const { error } = await supabase.from('tasks').insert([newTask]);
+
+        if (error) {
+            console.error('Supabase Error:', error);
+            alert('Error adding task: ' + error.message);
+            
+            // If it failed, remove the task from the screen
+            tasks = tasks.filter(t => t.id !== newId);
+            renderCalendar();
+            renderTasks();
+        }
+
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+
+    async function toggleTask(id, oldStatus) {
+        // Optimistic Update
+        const t = tasks.find(x => x.id === id);
+        if(t) t.completed = !oldStatus;
+        renderTasks();
+        renderCalendar();
+
+        await supabase.from('tasks').update({ completed: !oldStatus }).eq('id', id);
     }
 
     async function deleteTask(id) {
-      if (!confirm('Delete this task?')) return;
+        if(!confirm("Delete this task?")) return;
+        
+        // Optimistic
+        tasks = tasks.filter(t => t.id !== id);
+        renderTasks();
+        renderCalendar();
 
-      // Optimistic remove
-      const oldTasks = [...tasks];
-      tasks = tasks.filter(x => x.id !== id);
-      render();
-
-      const { error } = await supabase
-        .from('tasks')
-        .delete()
-        .eq('id', id);
-
-      if (error) {
-        alert('Error deleting task');
-        tasks = oldTasks;
-        render();
-      }
+        await supabase.from('tasks').delete().eq('id', id);
     }
 
-    async function inlineEdit(id) {
-      const t = tasks.find(x => x.id === id);
-      if (!t) return;
-      
-      const title = prompt('Edit title', t.title);
-      if (title === null) return;
-      
-      const due = prompt('Edit due date (YYYY-MM-DD) or leave blank', t.due || '');
-      const priority = prompt('Priority (low, medium, high)', t.priority);
-      
-      const updates = {};
-      if (title.trim()) updates.title = title.trim();
-      if (due !== null) updates.due = due.trim() || null;
-      if (priority && ['low', 'medium', 'high'].includes(priority)) updates.priority = priority;
-
-      if (Object.keys(updates).length === 0) return;
-
-      // Optimistic update
-      Object.assign(t, updates);
-      render();
-
-      const { error } = await supabase
-        .from('tasks')
-        .update(updates)
-        .eq('id', id);
-
-      if (error) {
-        alert('Update failed');
-        await fetchTasks(); // Revert by refetching
-      }
+    // --- MODAL HELPERS ---
+    function openModal() {
+        // Auto-set date if calendar date selected
+        if(selectedDate) $('taskDateInput').value = selectedDate;
+        else $('taskDateInput').value = new Date().toISOString().split('T')[0];
+        
+        $('addModal').classList.add('open');
+        $('taskTitleInput').focus();
     }
 
-    // --- RENDERING LOGIC (Same as before) ---
-
-    function render() {
-      const list = $('taskList');
-      list.innerHTML = '';
-      
-      let visible = tasks.slice();
-      
-      // Search
-      const searchTerm = $('searchInput').value.toLowerCase();
-      if (searchTerm) visible = visible.filter(t => t.title.toLowerCase().includes(searchTerm));
-      
-      // Date Filter
-      if (selectedDate) visible = visible.filter(t => t.due === selectedDate);
-      
-      // Status Filter
-      visible = visible.filter(t => {
-        if (currentFilter === 'all') return true;
-        if (currentFilter === 'active') return !t.completed;
-        if (currentFilter === 'completed') return t.completed;
-        if (currentFilter === 'overdue') return !t.completed && t.due && new Date(t.due) < startOfDay(new Date());
-      });
-      
-      // Sort
-      const sortBy = $('sortSelect').value;
-      if (sortBy === 'due' || $('autoSortToggle').checked) {
-        visible.sort((a, b) => {
-          if (!a.due) return 1;
-          if (!b.due) return -1;
-          return new Date(a.due) - new Date(b.due);
-        });
-      } else if (sortBy === 'priority') {
-        const priorityOrder = { high: 0, medium: 1, low: 2 };
-        visible.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
-      }
-      
-      if (visible.length === 0) {
-        list.innerHTML = `<div class="empty-state"><div class="empty-state-title">No tasks found</div></div>`;
-      } else {
-        visible.forEach(t => {
-          const node = document.importNode($('taskTpl').content, true).children[0];
-          node.dataset.id = t.id;
-          node.classList.toggle('completed', t.completed);
-          
-          const dot = document.createElement('span');
-          dot.className = `priority-dot p-${t.priority}`;
-          
-          const titleEl = node.querySelector('.task-title');
-          titleEl.appendChild(dot);
-          titleEl.append(t.title);
-          
-          const details = [];
-          if (t.due) details.push('Due: ' + formatDate(t.due));
-          details.push('Priority: ' + t.priority);
-          node.querySelector('.task-details').textContent = details.join(' • ');
-          
-          const chk = node.querySelector('.complete-chk');
-          chk.checked = t.completed;
-          chk.addEventListener('change', () => toggleComplete(t.id, t.completed));
-          
-          node.querySelector('.delete-btn').addEventListener('click', () => deleteTask(t.id));
-          node.querySelector('.edit-btn').addEventListener('click', () => inlineEdit(t.id));
-          
-          list.appendChild(node);
-        });
-      }
-      
-      $('count').textContent = tasks.length;
-      buildCalendarStrip();
-      updateSelectedLabel();
+    function closeModal() {
+        $('addModal').classList.remove('open');
     }
 
-    function buildCalendarStrip() {
-      const strip = $('calendarStrip');
-      strip.innerHTML = '';
-      const start = new Date(calendarStartDate);
-      
-      for (let i = 0; i < daysToShow; i++) {
-        const d = new Date(start);
-        d.setDate(start.getDate() + i);
-        const iso = d.toISOString().split('T')[0];
-        
-        const item = document.createElement('button');
-        item.className = 'cal-day';
-        item.dataset.date = iso;
-        
-        const weekdayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        item.innerHTML = `
-          <div class="daynum">${d.getDate()}</div>
-          <div class="month">${d.toLocaleString('en-US', { month: 'short' })}</div>
-          <div class="wk">${weekdayNames[d.getDay()]}</div>
-        `;
-        
-        const incompleteCount = tasks.filter(t => t.due === iso && !t.completed).length;
-        const completeCount = tasks.filter(t => t.due === iso && t.completed).length;
-        
-        if (incompleteCount > 0 || completeCount > 0) {
-          const badges = document.createElement('div');
-          badges.className = 'badges';
-          if (incompleteCount > 0) {
-            const b = document.createElement('div');
-            b.className = 'badge-dot incomplete';
-            b.textContent = incompleteCount > 9 ? '9+' : String(incompleteCount);
-            badges.appendChild(b);
-          }
-          if (completeCount > 0) {
-            const b = document.createElement('div');
-            b.className = 'badge-dot complete';
-            b.textContent = completeCount > 9 ? '9+' : String(completeCount);
-            badges.appendChild(b);
-          }
-          item.appendChild(badges);
-        }
-        
-        if (iso === new Date().toISOString().split('T')[0]) item.classList.add('today');
-        if (selectedDate === iso) item.classList.add('selected');
-        
-        item.addEventListener('click', () => {
-          selectedDate = selectedDate === iso ? null : iso;
-          $('dueInput').value = selectedDate || '';
-          render();
-        });
-        
-        strip.appendChild(item);
-      }
+    function setLoading(state) {
+        $('loader').style.display = state ? 'block' : 'none';
     }
 
-    function scrollCalendar(dir) {
-      const strip = $('calendarStrip');
-      const amount = Math.round(strip.clientWidth * 0.7) * dir;
-      strip.scrollBy({ left: amount, behavior: 'smooth' });
-    }
-
-    function updateSelectedLabel() {
-      $('selectedDateLabel').textContent = selectedDate ? new Date(selectedDate).toLocaleDateString() : 'All Tasks';
-    }
-    function formatDate(d) { try { return new Date(d).toLocaleDateString(); } catch (e) { return d; } }
-    function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
-    function setLoading(isLoading) { $('loading').style.display = isLoading ? 'flex' : 'none'; }
-// ... previous helper functions ...
-
-// 👇 Paste at Line 599 (Right above init();)
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js');
-}
-
-init(); // This is your Line 600
     init();
   </script>
 </body>
