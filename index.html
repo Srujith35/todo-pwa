@@ -3,11 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>Modern To-Do List (Supabase)</title>
-  
-  <link rel="manifest" href="./manifest.json" />
-  <meta name="theme-color" content="#3b82f6" />
-  <link rel="apple-touch-icon" href="icon-192.png"> <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <title>Tasks</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
       --bg: #f8fafc;
@@ -17,138 +14,181 @@
       --text: #0f172a;
       --text-muted: #64748b;
       --border: #e2e8f0;
-      --success: #10b981;z
-      --warning: #f59e0b;
+      --success: #10b981;
       --danger: #ef4444;
-      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --shadow: 0 6px 18px rgba(12, 18, 29, 0.06);
       --modal-overlay: rgba(0, 0, 0, 0.5);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       background: var(--bg);
       color: var(--text);
-      line-height: 1.5;
-      padding-bottom: 80px; /* Space for FAB */
+      -webkit-font-smoothing: antialiased;
+      padding-bottom: 88px;
     }
 
     .container { max-width: 1000px; margin: 0 auto; padding: 16px; }
 
     /* Header */
-    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    .brand h1 { font-size: 24px; font-weight: 800; color: var(--accent); }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 12px; }
+    .brand h1 { font-size: 22px; font-weight: 800; color: var(--accent); }
     .brand span { font-size: 12px; color: var(--text-muted); display: block; }
 
-    /* Calendar Section */
-    .calendar-section { background: var(--card); border-radius: 12px; padding: 16px; margin-bottom: 20px; box-shadow: var(--shadow); }
-    .calendar-controls { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-    .month-label { font-weight: 700; font-size: 16px; }
-    
+    /* Calendar */
+    .calendar-section { background: var(--card); border-radius: 12px; padding: 12px 0; margin-bottom: 18px; box-shadow: var(--shadow); position: relative; }
+    .month-label { font-weight: 700; font-size: 16px; text-align: center; min-width: 120px; margin-bottom: 8px; }
+
     .nav-btn { 
-      background: var(--bg); border: 1px solid var(--border); width: 32px; height: 32px; 
-      border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; 
+      background: var(--bg); border: 1px solid var(--border); width: 36px; height: 36px; 
+      border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; 
+      font-size: 16px; color: var(--text);
+    }
+    .nav-btn:active{ transform: scale(0.97); }
+
+    .calendar-strip {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding: 4px 12px 12px 12px;
+      /* IMPORTANT: Default is AUTO (Instant). We add 'smooth' class later via JS */
+      scroll-behavior: auto; 
+      white-space: nowrap;
+      align-items: center;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    
+    .calendar-strip.enable-smooth {
+      scroll-behavior: smooth;
     }
 
-    .calendar-strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scroll-behavior: smooth; }
-    .calendar-strip::-webkit-scrollbar { height: 0px; display: none; } /* Hide scrollbar */
-    
-    .cal-day { 
-      min-width: 60px; flex: 1; background: var(--bg); border: 1px solid var(--border); 
-      border-radius: 10px; padding: 10px 4px; text-align: center; cursor: pointer; transition: 0.2s; 
+    .calendar-strip::-webkit-scrollbar { display: none; }
+
+    .cal-day {
+      flex: 0 0 auto;
+      width: 72px;
+      min-width: 72px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 8px 6px;
+      text-align: center;
+      cursor: pointer;
+      transition: transform 0.15s, background 0.15s, box-shadow 0.15s;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
-    .cal-day.selected { background: var(--accent); border-color: var(--accent); color: white; transform: scale(1.05); }
+
+    .cal-day:active { transform: scale(0.95); }
+    
+    .cal-day.selected {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+      transform: scale(1.05);
+      box-shadow: 0 8px 20px rgba(59,130,246,0.25);
+    }
+
     .cal-day.today { border-color: var(--accent); border-width: 2px; }
-    .cal-day .daynum { font-size: 20px; font-weight: 700; }
-    .cal-day .wk { font-size: 10px; text-transform: uppercase; opacity: 0.8; }
-    
-    /* Task Dot Indicators */
-    .dots { display: flex; justify-content: center; gap: 3px; margin-top: 4px; height: 4px; }
-    .dot { width: 4px; height: 4px; border-radius: 50%; }
-    .dot.has-incomplete { background: var(--danger); }
-    .selected .dot.has-incomplete { background: white; }
+    .cal-day .daynum { font-size: 18px; font-weight: 700; margin-top: 6px; }
+    .cal-day .wk { font-size: 11px; text-transform: uppercase; opacity: 0.8; }
 
-    /* Controls & Filters */
-    .controls { display: flex; gap: 10px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 5px; }
+    .dots { display: flex; justify-content: center; gap: 4px; margin-top: 6px; height: 6px; }
+    .dot { width: 5px; height: 5px; border-radius: 50%; }
+    .dot.has-incomplete { background: var(--danger); }
+    .cal-day.selected .dot.has-incomplete { background: white; }
+
+    /* Controls */
+    .controls { display: flex; gap: 10px; margin-bottom: 10px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: none; }
+    .controls::-webkit-scrollbar { display: none; }
+    
     .pill-btn { 
-      padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border); 
+      padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); 
       background: var(--card); font-size: 13px; white-space: nowrap; cursor: pointer; 
+      transition: all 0.2s;
     }
     .pill-btn.active { background: var(--text); color: white; border-color: var(--text); }
 
-    /* Task List */
-    .task-list { display: flex; flex-direction: column; gap: 12px; }
+    /* Tasks */
+    .task-list { display: flex; flex-direction: column; gap: 12px; min-height: 200px; }
     .task-card { 
-      background: var(--card); border-radius: 12px; padding: 16px; display: flex; align-items: flex-start; gap: 12px; 
+      background: var(--card); border-radius: 12px; padding: 14px; display: flex; align-items: flex-start; gap: 12px; 
       box-shadow: var(--shadow); border: 1px solid transparent; transition: 0.2s;
     }
-    .task-card.completed { opacity: 0.6; background: var(--bg); }
+    .task-card.completed { opacity: 0.6; background: var(--bg); box-shadow: none; border-color: var(--border); }
     .task-card.completed .task-title { text-decoration: line-through; color: var(--text-muted); }
     
     .checkbox { 
       width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--border); 
       display: flex; align-items: center; justify-content: center; cursor: pointer; margin-top: 2px; flex-shrink: 0;
+      transition: 0.2s;
     }
     .checkbox.checked { background: var(--success); border-color: var(--success); color: white; }
     
     .task-content { flex: 1; }
-    .task-title { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
-    .task-meta { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+    .task-title { font-weight: 600; font-size: 15px; margin-bottom: 4px; word-break: break-word; }
+    .task-meta { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .priority-tag { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
     .p-high { background: #fee2e2; color: #ef4444; }
     .p-medium { background: #fef3c7; color: #d97706; }
     .p-low { background: #dcfce7; color: #16a34a; }
 
-    .delete-btn { border: none; background: none; font-size: 16px; cursor: pointer; opacity: 0.5; padding: 4px; }
+    .delete-btn { border: none; background: none; font-size: 16px; cursor: pointer; opacity: 0.4; padding: 4px; transition: opacity 0.2s; }
+    .delete-btn:hover { opacity: 1; color: var(--danger); }
 
-    /* FLOATING ACTION BUTTON (FAB) */
+    /* FAB & Modal */
     .fab {
       position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px;
       background: var(--accent); color: white; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
-      font-size: 32px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+      font-size: 32px; box-shadow: 0 6px 22px rgba(59, 130, 246, 0.3);
       border: none; cursor: pointer; z-index: 90; transition: transform 0.2s;
     }
-    .fab:active { transform: scale(0.95); }
+    .fab:active { transform: scale(0.90); }
 
-    /* MODAL (ADD TASK) */
     .modal-overlay {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: var(--modal-overlay); z-index: 100;
-      display: none; justify-content: center; align-items: flex-end; /* Bottom sheet on mobile */
+      display: none; justify-content: center; align-items: flex-end;
+      opacity: 0; transition: opacity 0.2s;
     }
-    .modal-overlay.open { display: flex; }
+    .modal-overlay.open { display: flex; opacity: 1; }
 
     .modal-card {
-      background: var(--card); width: 100%; max-width: 500px;
-      border-radius: 20px 20px 0 0; padding: 24px;
-      animation: slideUp 0.3s ease-out;
+      background: var(--card); width: 100%; max-width: 520px;
+      border-radius: 20px 20px 0 0; padding: 22px;
+      transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
+    .modal-overlay.open .modal-card { transform: translateY(0); }
+
     @media(min-width: 600px) {
       .modal-overlay { align-items: center; }
-      .modal-card { border-radius: 20px; margin: 20px; }
+      .modal-card { border-radius: 20px; margin: 20px; transform: translateY(20px); }
+      .modal-overlay.open .modal-card { transform: translateY(0); }
     }
 
-    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-
-    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
     .modal-title { font-size: 18px; font-weight: 700; }
-    .close-modal { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted); }
+    .close-modal { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted); padding: 0 8px; }
 
     .form-group { margin-bottom: 16px; }
-    .form-group label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--text-muted); }
+    .form-group label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--text-muted); text-transform: uppercase; }
     .full-input, .full-select { 
       width: 100%; padding: 12px; border: 1px solid var(--border); 
-      border-radius: 8px; font-size: 16px; background: var(--bg); 
+      border-radius: 10px; font-size: 16px; background: var(--bg); 
+      outline: none; transition: border-color 0.2s;
     }
+    .full-input:focus, .full-select:focus { border-color: var(--accent); }
+    
     .btn-submit {
       width: 100%; background: var(--accent); color: white; padding: 14px;
       border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer;
     }
 
-    /* Loading */
-    .loader { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); border: 4px solid #f3f3f3; border-top: 4px solid var(--accent); border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; display: none; z-index: 200; }
+    .loader { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); border: 3px solid rgba(0,0,0,0.1); border-top: 3px solid var(--accent); border-radius: 50%; width: 32px; height: 32px; animation: spin 0.8s linear infinite; display: none; z-index: 200; }
     @keyframes spin { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
   </style>
 </head>
@@ -164,15 +204,16 @@
         <h1>Tasks</h1>
         <span>Supabase Sync</span>
       </div>
-      <button id="refreshBtn" class="nav-btn" style="width: auto; padding: 0 12px; font-size: 12px;">Sync</button>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <button class="nav-btn" id="prevWeek">←</button>
+        <button class="nav-btn" id="nextWeek">→</button>
+        <button id="refreshBtn" class="nav-btn" style="width:auto; padding: 0 12px; font-size:13px; font-weight:600;">Sync</button>
+      </div>
     </div>
 
+    <div class="month-label" id="monthLabel">...</div>
+
     <div class="calendar-section">
-      <div class="calendar-controls">
-        <button class="nav-btn" id="prevWeek">←</button>
-        <span class="month-label" id="monthLabel">Month</span>
-        <button class="nav-btn" id="nextWeek">→</button>
-      </div>
       <div id="calendarStrip" class="calendar-strip"></div>
     </div>
 
@@ -183,8 +224,7 @@
       <button class="pill-btn" data-filter="completed">Done</button>
     </div>
 
-    <div id="taskList" class="task-list">
-      </div>
+    <div id="taskList" class="task-list"></div>
   </div>
 
   <div id="addModal" class="modal-overlay">
@@ -193,12 +233,10 @@
         <div class="modal-title">New Task</div>
         <button class="close-modal" id="closeModal">×</button>
       </div>
-      
       <div class="form-group">
-        <label>What needs to be done?</label>
-        <input type="text" id="taskTitleInput" class="full-input" placeholder="e.g., Buy groceries" autofocus>
+        <label>Task Name</label>
+        <input type="text" id="taskTitleInput" class="full-input" placeholder="e.g., Buy groceries">
       </div>
-
       <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
         <div>
           <label>Due Date</label>
@@ -213,280 +251,370 @@
           </select>
         </div>
       </div>
-
       <button id="saveTaskBtn" class="btn-submit">Save Task</button>
     </div>
   </div>
 
   <script>
-    // --- CONFIGURATION ---
+    // CONFIG
     const SUPABASE_URL = 'https://ehzdeplfeifwwccilbnu.supabase.co'; 
-    const SUPABASE_KEY = 'sb_publishable_Z_rxKGrCQLDkPUQnc3mVeA_2WH8ASE0'; // Use your Key here
-
+    const SUPABASE_KEY = 'sb_publishable_Z_rxKGrCQLDkPUQnc3mVeA_2WH8ASE0';
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     const $ = id => document.getElementById(id);
 
-    // State
+    // STATE
     let tasks = [];
-    let calendarStart = new Date(); 
-    calendarStart.setDate(calendarStart.getDate() - 2); // Start slightly in past
-    let selectedDate = null; // YYYY-MM-DD
+    let selectedDate = null;
     let currentFilter = 'all';
+    let days = [];
+    let startOffset = -30;  
+    let endOffset = 30;
+    
+    // FLAGS
+    let isAppReady = false; // Locks scroll logic until init done
+    let isExtending = false;
+    let isSnapping = false;
 
-    // --- INIT ---
-    async function init() {
-        setLoading(true);
-        renderCalendar();
-        setupEvents();
-        await fetchTasks();
-        setLoading(false);
+    // --- INITIAL SETUP & CALENDAR RENDER ---
+    
+    function generateInitialDays() {
+      days = [];
+      for (let i = startOffset; i <= endOffset; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() + i);
+        days.push({
+          offset: i,
+          iso: d.toISOString().split('T')[0],
+          wk: d.toLocaleString('en-US', { weekday: 'short' }),
+          num: d.getDate()
+        });
+      }
     }
 
-    function setupEvents() {
-        // Navigation
-        $('prevWeek').addEventListener('click', () => shiftCalendar(-7));
-        $('nextWeek').addEventListener('click', () => shiftCalendar(7));
-        
-        // Modal Logic
-        $('fabBtn').addEventListener('click', openModal);
-        $('closeModal').addEventListener('click', closeModal);
-        $('addModal').addEventListener('click', (e) => {
-            if(e.target === $('addModal')) closeModal();
-        });
-
-        // Task Logic
-        $('saveTaskBtn').addEventListener('click', addTask);
-        $('refreshBtn').addEventListener('click', async () => {
-            setLoading(true);
-            await fetchTasks();
-            setLoading(false);
-        });
-
-        // Filter Buttons
-        document.querySelectorAll('.pill-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                currentFilter = btn.dataset.filter;
-                renderTasks();
-            });
-        });
-    }
-
-    // --- CALENDAR LOGIC ---
-    function shiftCalendar(days) {
-        calendarStart.setDate(calendarStart.getDate() + days);
-        renderCalendar();
+    function createDayEl(d, todayISO) {
+      const el = document.createElement('div');
+      el.className = `cal-day ${d.iso === todayISO ? 'today' : ''} ${selectedDate === d.iso ? 'selected' : ''}`;
+      el.dataset.iso = d.iso;
+      
+      const hasTasks = tasks.some(t => t.due === d.iso && !t.completed);
+      el.innerHTML = `
+        <div class="wk">${d.wk}</div>
+        <div class="daynum">${d.num}</div>
+        ${ hasTasks ? '<div class="dots"><div class="dot has-incomplete"></div></div>' : '' }
+      `;
+      
+      el.onclick = () => selectDate(d.iso);
+      return el;
     }
 
     function renderCalendar() {
-        const strip = $('calendarStrip');
-        strip.innerHTML = '';
-        
-        const daysToShow = 7; // Show 1 week at a time on strip (cleaner on mobile)
-        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-        
-        // Update Month Label based on the middle of the view
-        const midDate = new Date(calendarStart);
-        midDate.setDate(midDate.getDate() + 3);
-        $('monthLabel').textContent = `${monthNames[midDate.getMonth()]} ${midDate.getFullYear()}`;
-
-        for (let i = 0; i < daysToShow; i++) {
-            const d = new Date(calendarStart);
-            d.setDate(calendarStart.getDate() + i);
-            const iso = d.toISOString().split('T')[0];
-            const isToday = iso === new Date().toISOString().split('T')[0];
-
-            const el = document.createElement('div');
-            el.className = `cal-day ${isToday ? 'today' : ''} ${selectedDate === iso ? 'selected' : ''}`;
-            
-            // Check for dots
-            const dayTasks = tasks.filter(t => t.due === iso);
-            const hasIncomplete = dayTasks.some(t => !t.completed);
-            
-            el.innerHTML = `
-                <div class="wk">${d.toLocaleString('en-US', { weekday: 'short' })}</div>
-                <div class="daynum">${d.getDate()}</div>
-                ${hasIncomplete ? '<div class="dots"><div class="dot has-incomplete"></div></div>' : ''}
-            `;
-
-            el.addEventListener('click', () => {
-                selectedDate = selectedDate === iso ? null : iso; // Toggle
-                renderCalendar(); // Re-render to update styling
-                renderTasks();
-            });
-
-            strip.appendChild(el);
-        }
+      const strip = $('calendarStrip');
+      const todayISO = new Date().toISOString().split('T')[0];
+      strip.innerHTML = '';
+      
+      const frag = document.createDocumentFragment();
+      days.forEach(d => frag.appendChild(createDayEl(d, todayISO)));
+      strip.appendChild(frag);
     }
 
-    // --- TASK LOGIC ---
+    function selectDate(iso) {
+      selectedDate = iso;
+      // Update visual selection
+      document.querySelectorAll('.cal-day').forEach(el => {
+        if (el.dataset.iso === iso) el.classList.add('selected');
+        else el.classList.remove('selected');
+      });
+      renderTasks();
+      
+      // Only scroll if app is ready (user interaction)
+      if (isAppReady) {
+        scrollToIso(iso, true); 
+      }
+    }
+
+    // --- SCROLL LOGIC ---
+
+    function scrollToIso(iso, smooth = false) {
+      const strip = $('calendarStrip');
+      const target = strip.querySelector(`[data-iso="${iso}"]`);
+      if (!target) return;
+
+      // If app isn't ready, force instant scroll via JS calculation to avoid browser quirks
+      if (!isAppReady || !smooth) {
+        const stripWidth = strip.clientWidth;
+        const targetLeft = target.offsetLeft;
+        const targetWidth = target.offsetWidth;
+        strip.scrollLeft = targetLeft - (stripWidth / 2) + (targetWidth / 2);
+      } else {
+        target.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    }
+
+    function updateMonthLabel() {
+      const strip = $('calendarStrip');
+      const center = strip.scrollLeft + (strip.clientWidth / 2);
+      
+      // Find element closest to center pixel
+      let closest = null;
+      let minDiff = Infinity;
+      
+      for (const child of strip.children) {
+        const childCenter = child.offsetLeft + (child.offsetWidth / 2);
+        const diff = Math.abs(childCenter - center);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closest = child;
+        }
+      }
+
+      if (closest && closest.dataset.iso) {
+        const d = new Date(closest.dataset.iso);
+        const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+        $('monthLabel').textContent = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+      }
+    }
+
+    // Debounced snap logic
+    let snapTimeout;
+    function handleScroll() {
+      // 1. Infinite Scroll Check
+      const strip = $('calendarStrip');
+      if (isAppReady && !isExtending) {
+        if (strip.scrollLeft < 100) extendLeft();
+        else if (strip.scrollWidth - strip.clientWidth - strip.scrollLeft < 100) extendRight();
+      }
+
+      // 2. Update Month Label immediately
+      updateMonthLabel();
+
+      // 3. Snap Logic (Only if app is ready)
+      if (isAppReady) {
+        clearTimeout(snapTimeout);
+        snapTimeout = setTimeout(() => {
+          if (!isSnapping && !isExtending) {
+            isSnapping = true;
+            snapToCenter();
+            setTimeout(() => isSnapping = false, 400);
+          }
+        }, 150); // Wait for scroll to stop
+      }
+    }
+
+    function snapToCenter() {
+      const strip = $('calendarStrip');
+      const center = strip.scrollLeft + (strip.clientWidth / 2);
+      let closest = null;
+      let minDiff = Infinity;
+      for (const child of strip.children) {
+        const childCenter = child.offsetLeft + (child.offsetWidth / 2);
+        const diff = Math.abs(childCenter - center);
+        if (diff < minDiff) { minDiff = diff; closest = child; }
+      }
+      if (closest) {
+        closest.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    }
+
+    // --- INFINITE EXTENSION ---
+    function extendRight() {
+      isExtending = true;
+      const strip = $('calendarStrip');
+      const todayISO = new Date().toISOString().split('T')[0];
+      
+      for(let i=1; i<=15; i++) {
+        endOffset++;
+        const d = new Date(); d.setDate(d.getDate() + endOffset);
+        const dayObj = { offset: endOffset, iso: d.toISOString().split('T')[0], wk: d.toLocaleString('en-US',{weekday:'short'}), num: d.getDate() };
+        days.push(dayObj);
+        strip.appendChild(createDayEl(dayObj, todayISO));
+      }
+      isExtending = false;
+    }
+
+    function extendLeft() {
+      isExtending = true;
+      const strip = $('calendarStrip');
+      const prevScrollW = strip.scrollWidth;
+      const todayISO = new Date().toISOString().split('T')[0];
+      
+      // Temporarily disable smooth behavior if it was enabled
+      strip.classList.remove('enable-smooth');
+      
+      const newNodes = [];
+      for(let i=1; i<=15; i++) {
+        startOffset--;
+        const d = new Date(); d.setDate(d.getDate() + startOffset);
+        const dayObj = { offset: startOffset, iso: d.toISOString().split('T')[0], wk: d.toLocaleString('en-US',{weekday:'short'}), num: d.getDate() };
+        days.unshift(dayObj);
+        newNodes.unshift(createDayEl(dayObj, todayISO));
+      }
+      
+      newNodes.forEach(n => strip.insertBefore(n, strip.firstChild));
+      
+      // Adjust scroll to maintain position
+      const addedW = strip.scrollWidth - prevScrollW;
+      strip.scrollLeft += addedW;
+      
+      requestAnimationFrame(() => {
+        if(isAppReady) strip.classList.add('enable-smooth');
+        isExtending = false;
+      });
+    }
+
+    // --- TASKS & DATA ---
 
     async function fetchTasks() {
-        const { data, error } = await supabase
-            .from('tasks')
-            .select('*')
-            .order('created_at', { ascending: false });
-        
-        if(!error && data) {
-            tasks = data;
-            renderCalendar(); // Update dots
-            renderTasks();
+      try {
+        const { data, error } = await supabase.from('tasks').select('*').order('created_at', { ascending: false });
+        if (data) {
+          tasks = data.map(t => ({ ...t, due: t.due ? t.due.split('T')[0] : null }));
+          renderCalendar(); // refresh dots
+          renderTasks();
+          // Restore selection visual after re-render
+          if(selectedDate) selectDate(selectedDate);
         }
+      } catch(e) { console.error(e); }
     }
 
     function renderTasks() {
-        const list = $('taskList');
-        list.innerHTML = '';
+      const list = $('taskList');
+      list.innerHTML = '';
+      let filtered = tasks;
 
-        let filtered = tasks;
+      if (selectedDate) filtered = filtered.filter(t => t.due === selectedDate);
+      if (currentFilter === 'today') filtered = filtered.filter(t => t.due === new Date().toISOString().split('T')[0]);
+      else if (currentFilter === 'active') filtered = filtered.filter(t => !t.completed);
+      else if (currentFilter === 'completed') filtered = filtered.filter(t => t.completed);
 
-        // Filter by Date Selection
-        if (selectedDate) {
-            filtered = filtered.filter(t => t.due === selectedDate);
-        }
+      if (filtered.length === 0) {
+        list.innerHTML = `<div style="text-align:center; padding:40px; opacity:0.5">No tasks here</div>`;
+        return;
+      }
 
-        // Filter by Pills
-        if (currentFilter === 'today') {
-            const today = new Date().toISOString().split('T')[0];
-            filtered = filtered.filter(t => t.due === today);
-        } else if (currentFilter === 'active') {
-            filtered = filtered.filter(t => !t.completed);
-        } else if (currentFilter === 'completed') {
-            filtered = filtered.filter(t => t.completed);
-        }
-
-        if (filtered.length === 0) {
-            list.innerHTML = `<div style="text-align:center; color:var(--text-muted); padding:40px;">No tasks found</div>`;
-            return;
-        }
-
-        filtered.forEach(t => {
-            const el = document.createElement('div');
-            el.className = `task-card ${t.completed ? 'completed' : ''}`;
-            el.innerHTML = `
-                <div class="checkbox ${t.completed ? 'checked' : ''}">
-                    ${t.completed ? '✓' : ''}
-                </div>
-                <div class="task-content">
-                    <div class="task-title">${t.title}</div>
-                    <div class="task-meta">
-                        <span class="priority-tag p-${t.priority}">${t.priority}</span>
-                        ${t.due ? `<span>📅 ${t.due}</span>` : ''}
-                    </div>
-                </div>
-                <button class="delete-btn">🗑️</button>
-            `;
-
-            // Events
-            el.querySelector('.checkbox').addEventListener('click', () => toggleTask(t.id, t.completed));
-            el.querySelector('.delete-btn').addEventListener('click', (e) => {
-                e.stopPropagation();
-                deleteTask(t.id);
-            });
-
-            list.appendChild(el);
-        });
+      filtered.forEach(t => {
+        const el = document.createElement('div');
+        el.className = `task-card ${t.completed ? 'completed' : ''}`;
+        el.innerHTML = `
+          <div class="checkbox ${t.completed ? 'checked' : ''}">${t.completed ? '✓' : ''}</div>
+          <div class="task-content">
+            <div class="task-title">${t.title.replace(/</g,'&lt;')}</div>
+            <div class="task-meta"><span class="priority-tag p-${t.priority}">${t.priority}</span>${t.due ? ` 📅 ${t.due}`:''}</div>
+          </div>
+          <button class="delete-btn">🗑️</button>
+        `;
+        el.querySelector('.checkbox').onclick = () => toggleTask(t.id, t.completed);
+        el.querySelector('.delete-btn').onclick = () => deleteTask(t.id);
+        list.appendChild(el);
+      });
     }
 
     async function addTask() {
-        const title = $('taskTitleInput').value.trim();
-        if (!title) return;
-        
-        const btn = $('saveTaskBtn');
-        const originalText = btn.textContent;
-        btn.textContent = 'Saving...';
-        btn.disabled = true;
+      const title = $('taskTitleInput').value.trim();
+      if (!title) return;
+      $('saveTaskBtn').textContent = 'Saving...';
+      
+      const newTask = { 
+        title, 
+        due: $('taskDateInput').value || null, 
+        priority: $('taskPriorityInput').value, 
+        completed: false 
+      };
 
-        // 1. Generate ID locally (Fixes the "null value in column id" error)
-        const newId = Date.now().toString();
-
-        const newTask = {
-            id: newId,
-            title: title,
-            due: $('taskDateInput').value || null,
-            priority: $('taskPriorityInput').value,
-            completed: false
-        };
-
-        // 2. Optimistic Update (Show it on screen immediately)
-        tasks.unshift(newTask);
+      const { data, error } = await supabase.from('tasks').insert([newTask]).select();
+      if (!error && data) {
+        // Local update
+        const t = { ...data[0], due: data[0].due ? data[0].due.split('T')[0] : null };
+        tasks.unshift(t);
         renderCalendar();
         renderTasks();
-        closeModal();
-        
-        // Clear input
-        $('taskTitleInput').value = ''; 
-
-        // 3. Send to Supabase in the background
-        const { error } = await supabase.from('tasks').insert([newTask]);
-
-        if (error) {
-            console.error('Supabase Error:', error);
-            alert('Error adding task: ' + error.message);
-            
-            // If it failed, remove the task from the screen
-            tasks = tasks.filter(t => t.id !== newId);
-            renderCalendar();
-            renderTasks();
+        // Select the date of the new task to show it
+        if (t.due) {
+            selectDate(t.due);
+            scrollToIso(t.due, true);
         }
-
-        btn.textContent = originalText;
-        btn.disabled = false;
+        closeModal();
+        $('taskTitleInput').value = '';
+      }
+      $('saveTaskBtn').textContent = 'Save Task';
     }
 
-    async function toggleTask(id, oldStatus) {
-        // Optimistic Update
-        const t = tasks.find(x => x.id === id);
-        if(t) t.completed = !oldStatus;
-        renderTasks();
-        renderCalendar();
-
-        await supabase.from('tasks').update({ completed: !oldStatus }).eq('id', id);
+    async function toggleTask(id, status) {
+      const t = tasks.find(x => x.id === id);
+      if (t) t.completed = !status;
+      renderTasks(); renderCalendar();
+      await supabase.from('tasks').update({ completed: !status }).eq('id', id);
     }
 
     async function deleteTask(id) {
-        if(!confirm("Delete this task?")) return;
-        
-        // Optimistic
-        tasks = tasks.filter(t => t.id !== id);
-        renderTasks();
-        renderCalendar();
-
-        await supabase.from('tasks').delete().eq('id', id);
+      if (!confirm('Delete?')) return;
+      tasks = tasks.filter(t => t.id !== id);
+      renderTasks(); renderCalendar();
+      await supabase.from('tasks').delete().eq('id', id);
     }
 
-    // --- MODAL HELPERS ---
-    function openModal() {
-        // Auto-set date if calendar date selected
-        if(selectedDate) $('taskDateInput').value = selectedDate;
-        else $('taskDateInput').value = new Date().toISOString().split('T')[0];
-        
-        $('addModal').classList.add('open');
-        $('taskTitleInput').focus();
+    // --- UI HANDLERS ---
+    function openModal() { 
+      $('taskDateInput').value = selectedDate || new Date().toISOString().split('T')[0];
+      $('addModal').classList.add('open'); 
+    }
+    function closeModal() { $('addModal').classList.remove('open'); }
+    
+    function jump(days) {
+      const current = new Date(selectedDate || new Date());
+      current.setDate(current.getDate() + days);
+      const iso = current.toISOString().split('T')[0];
+      selectDate(iso);
     }
 
-    function closeModal() {
-        $('addModal').classList.remove('open');
-    }
+    // --- BOOTSTRAP ---
+    async function init() {
+      $('loader').style.display = 'block';
+      
+      generateInitialDays();
+      renderCalendar();
+      
+      const today = new Date().toISOString().split('T')[0];
+      selectedDate = today;
 
-    function setLoading(state) {
-        $('loader').style.display = state ? 'block' : 'none';
-    }
-
-    init();
-    // ... your existing code ...
-
-    init();
-
-    // --- ADD PWA REGISTRATION HERE ---
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-          .then((reg) => console.log('Service Worker registered!', reg))
-          .catch((err) => console.log('Service Worker failed:', err));
+      // INITIAL SCROLL: Perform instant scroll BEFORE listeners are active
+      // We do this inside a requestAnimationFrame to ensure DOM is painted
+      requestAnimationFrame(() => {
+         scrollToIso(today, false); // false = Instant
+         updateMonthLabel();
       });
+
+      await fetchTasks();
+      
+      // EVENT LISTENERS
+      $('prevWeek').onclick = () => jump(-7);
+      $('nextWeek').onclick = () => jump(7);
+      $('fabBtn').onclick = openModal;
+      $('closeModal').onclick = closeModal;
+      $('saveTaskBtn').onclick = addTask;
+      $('refreshBtn').onclick = fetchTasks;
+      
+      document.querySelectorAll('.pill-btn').forEach(btn => {
+        btn.onclick = () => {
+          document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentFilter = btn.dataset.filter;
+          renderTasks();
+        };
+      });
+
+      // Add scroll listener
+      $('calendarStrip').addEventListener('scroll', handleScroll);
+
+      // UNLOCK APP: Enable smooth scrolling only after initial setup is settled
+      setTimeout(() => {
+        isAppReady = true;
+        $('calendarStrip').classList.add('enable-smooth');
+        $('loader').style.display = 'none';
+      }, 300); // 300ms buffer for initial layout to stabilize
     }
+
+    init();
+
   </script>
 </body>
 </html>
